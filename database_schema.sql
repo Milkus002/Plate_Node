@@ -4,10 +4,10 @@ USE plate_db;
 
 CREATE TABLE plate (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    plate VARCHAR(50) NOT NULL,
-    ID_car VARCHAR(50) UNIQUE NOT NULL,
+    plateNumber VARCHAR(50) NOT NULL,
+    vehiceId VARCHAR(50) UNIQUE NOT NULL,
     register_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    car_color VARCHAR(50),
+    colorCar VARCHAR(50),
     image BLOB
 );
 
@@ -15,8 +15,8 @@ CREATE TABLE device (
     ID INT AUTO_INCREMENT PRIMARY KEY,
     mac VARCHAR(25) NOT NULL,
     deviceName VARCHAR(50) NOT NULL,
-    sn VARCHAR(25) NOT NULL,
-)
+    sn VARCHAR(25) NOT NULL
+);
 
 
 
@@ -41,10 +41,10 @@ CREATE TABLE alarms (
     existPersonCount INT,
 
 
-    plate VARCHAR(50),
-    carId VARCHAR(50) UNIQUE,
-    car_color VARCHAR(50),
+    plateNumber VARCHAR(50),
+    vehiceId VARCHAR(50) UNIQUE,
+    colorCar VARCHAR(50),
 
-    image BLOB
+    plateimage BLOB
 
 );
