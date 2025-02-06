@@ -1,6 +1,6 @@
 import pool from "../config/db.js";
 
-class DatabaseOperations {
+class ORM {
   constructor(table) {
     this.table = table;
   }
@@ -45,32 +45,41 @@ class DatabaseOperations {
     return newResponse
   }
 
-  get(data = {}) {
-    const sql = QueryBuilder.build.filter(this.table, data);
-    return new Promise((resolve, reject) => {
-      pool.query(sql, function (err, data) {
-        if (err) {
-          reject(err)
-        } else {
-          resolve(data.rows);
-        }
-      });
-    });
-  }
+  async get(data = {}) {
+    const { query, values } = QueryBuilder.build.filter(this.table, data);
+    try {
+        const result = await new Promise((resolve, reject) => {
+            pool.query(query, values, function (err, result) {
+                if (err) {
+                    console.error("Error en la consulta:", err);
+                    reject(err);  // Si ocurre un error, lo rechazamos
+                } else {
+                      console.log("AAAMMAMAMAMA",result);
+                      return resolve(result);
+                }
+            });
+        });
+        return result;
+    } catch (error) {
+        console.error("Error en la consulta:", error);  // En caso de error
+        throw error;
+    }
+}
 
-  save(data) {
-    console.log("FUNCION SAVE");
-    const sql = QueryBuilder.build.save(this.table, data);
-    return new Promise((resolve, reject) => {
-      pool.query(sql, Object.values(data), (err, data) => {
-        if (err) {
-          reject(err)
-        } else {
-          resolve(data.rows);
-        }
-      });
+
+save(data) {
+  console.log("FUNCION SAVE");
+  const sql = QueryBuilder.build.save(this.table, data);
+  return new Promise((resolve, reject) => {
+    pool.query(sql, Object.values(data), (err, result) => {
+      if (err) {
+        reject(err);
+      } else {
+        return resolve(result.insertId); // Usamos insertId para obtener el ID del registro insertado
+      }
     });
-  }
+  });
+}
 
   update(data, where) {
     const sql = QueryBuilder.build.update(this.table, data, where);
@@ -79,7 +88,7 @@ class DatabaseOperations {
         if (err) {
           reject(err)
         } else {
-          resolve(data.rows);
+          resolve(data);
         }
       });
     });
@@ -99,26 +108,40 @@ class DatabaseOperations {
 const QueryBuilder = {
   build: {
     save: (name, data) => {
-        const vIterator = Object.keys(data).map(() => `?`).join(',');
-        const keys = Object.keys(data).join(',');
-        return `INSERT INTO ${name} (${keys}) VALUES (${vIterator})`;
+      if (!Object.keys(data).length) throw new Error("No se pueden guardar datos vacíos");
+      const vIterator = Object.keys(data).map(() => `?`).join(',');
+      const keys = Object.keys(data).join(',');
+      return `INSERT INTO ${name} (${keys}) VALUES (${vIterator})`;
     },
+
+    filter(table, data) {
+      //console.log("smart_type:", data);  // Asegúrate de que sea el valor correcto
     
-    filter: (name, { columns, where }) => {
-      let conditions = '';
-
-      if (where) {
-        const conditionKeys = Object.keys(where);
-        const conditionValues = Object.values(where).map((value) => (typeof value === 'string' ? `'${value}'` : value));
-        conditionKeys.forEach((key, index) => {
-          conditions += `${key} = ${conditionValues[index]}${index === conditionKeys.length - 1 ? '' : ' AND '}`;
-        });
+      const whereConditions = data?.where;  // Accede a `data.where` directamente
+      let query = `SELECT * FROM ${table}`;
+      let values = [];
+    
+      // Verifica si 'whereConditions' existe y tiene datos antes de procesarlo
+      if (whereConditions && typeof whereConditions === 'object' && Object.keys(whereConditions).length > 0) {
+        const conditions = Object.entries(whereConditions)
+          .map(([key, value]) => {
+            values.push(value);  // Agregar los valores a la lista
+            return `${key} = ?`;  // Crear la condición 'key = ?'
+          })
+          .join(' AND ');  // Si hay más condiciones, unírlas con 'AND'
+    
+        query += ` WHERE ${conditions}`;  // Agregar el 'WHERE' a la consulta
+      } else {
+        console.log("No hay condiciones WHERE o la estructura es incorrecta");
       }
-
-      let query = `SELECT ${columns ? columns.join() : '*'} FROM ${name}`;
-      if (conditions) query += ` WHERE ${conditions}`;
-      return query;
-    },
+    
+      console.log("Consulta generada:", query);  // Asegúrate de que la consulta sea correcta
+      console.log("Valores para la consulta:", values);  // Verifica los valores generados
+    
+      return { query, values };  // Devolver la consulta y los valores para el 'WHERE'
+    },   
+  
+    
     innerJoin: (name, pivot, pk, fk, fk_pivot, id, select = []) => {
 
       const selection = select.length ? select.map(s => `s.${s}`).join(',') : '*'
@@ -148,9 +171,9 @@ const QueryBuilder = {
       let query = `UPDATE ${name} SET ${updater} `;
       if (conditions) query += ` WHERE ${conditions}`;
       return query;
-    }
+    },
   }
 }
-export { DatabaseOperations, QueryBuilder };
+export { ORM, QueryBuilder };
 
 

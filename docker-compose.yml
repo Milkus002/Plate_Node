@@ -9,6 +9,9 @@ services:
       - db
     networks:
       - node_network
+    volumes:
+       - ./storage:/usr/src/app/storage
+
 
   db:
     image: mysql:8.0
